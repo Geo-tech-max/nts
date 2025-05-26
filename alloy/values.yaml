@@ -1,0 +1,33 @@
+controller:
+  type: statefulset
+  replicas: 1
+
+configMap:
+  create: true
+  content: |
+    logging {
+      level = "debug"
+    }
+
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+
+    prometheus.remote_write "victoriametrics" {
+      endpoint {
+        url = "http://vm-victoria-metrics-single-server.monitoring.svc.cluster.local:8428/api/v1/write"
+      }
+    }
+
+    prometheus.scrape "pods" {
+      targets = discovery.kubernetes.pods.targets
+      forward_to = [prometheus.remote_write.victoriametrics.receiver]
+    }
+
+args:
+  - "run"
+  - "/etc/alloy/config.alloy"
+  - "--storage.path=/tmp/alloy"
+  - "--server.http.listen-addr=0.0.0.0:12345"
+  - "--server.http.ui-path-prefix=/"
+  - "--stability.level=generally-available"

@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-metrics
+  namespace: monitoring
+  labels:
+    app: test-metrics
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+spec:
+  containers:
+    - name: metrics
+      image: busybox
+      command:
+        - sh
+        - -c
+        - |
+          while true; do
+            echo -e "dummy_metric 1" | nc -l -p 8080;
+          done
+      ports:
+        - containerPort: 8080
