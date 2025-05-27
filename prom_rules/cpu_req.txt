@@ -1,0 +1,10 @@
+round(
+  100 *
+    sum(
+      rate(container_cpu_usage_seconds_total{container_name!="POD"}[5m])
+    ) by (pod, container_name, namespace, slave)
+      /
+    sum(
+      kube_pod_container_resource_requests_cpu_cores{container_name!="POD"}
+    ) by (pod, container_name, namespace, slave)
+)
