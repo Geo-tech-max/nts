@@ -1,0 +1,60 @@
+logging {
+  level = "debug"
+}
+
+prometheus.remote_write "victoriametrics" {
+  endpoint {
+    url = "http://vm-victoria-metrics-single-server.monitoring.svc.cluster.local:8428/api/v1/write"
+  }
+}
+
+
+prometheus.scrape "node_exporter" {
+  targets = [
+    { "__address__" = "prom-stack-prometheus-node-exporter.monitoring.svc.cluster.local:9100" },
+  ]
+  metrics_path = "/metrics"
+  forward_to   = [prometheus.remote_write.victoriametrics.receiver]
+  job_name     = "scraper.remote.node_exporter"
+}
+
+
+prometheus.scrape "kube_state_metrics" {
+  targets = [
+    { "__address__" = "prom-stack-kube-state-metrics.monitoring.svc.cluster.local:8080" },
+  ]
+  metrics_path = "/metrics"
+  forward_to   = [prometheus.remote_write.victoriametrics.receiver]
+  job_name     = "scraper.remote.kube_state_metrics"
+}
+
+
+prometheus.scrape "prometheus" {
+  targets = [
+    { "__address__" = "prom-stack-kube-prometheus-operator.monitoring.svc.cluster.local:443" },
+  ]
+  metrics_path = "/metrics"
+  scheme       = "https"
+
+  tls_config {
+    ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    insecure_skip_verify = true
+  }
+
+  authorization {
+    credentials_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  }
+
+  forward_to = [prometheus.remote_write.victoriametrics.receiver]
+  job_name   = "scraper.remote.prometheus_operator"
+}
+
+
+prometheus.scrape "alertmanager" {
+  targets = [
+    { "__address__" = "prom-stack-kube-prometheus-alertmanager.monitoring.svc.cluster.local:9093" },
+  ]
+  metrics_path = "/metrics"
+  forward_to   = [prometheus.remote_write.victoriametrics.receiver]
+  job_name     = "scraper.remote.alertmanager"
+}

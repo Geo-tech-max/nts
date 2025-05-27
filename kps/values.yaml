@@ -7,9 +7,3 @@ grafana:
 
   adminUser: admin
   adminPassword: password
-
-  dashboards:
-    default: {}
-
-prometheus:
-  enabled: false 

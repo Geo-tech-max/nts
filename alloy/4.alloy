@@ -1,0 +1,19 @@
+logging {
+  level = "debug"
+}
+
+prometheus.remote_write "victoriametrics" {
+  endpoint {
+    url = "http://vm-victoria-metrics-single-server.monitoring.svc.cluster.local:8428/api/v1/write"
+  }
+}
+
+prometheus.scrape "prometheus" {
+    targets = [
+        { "__address__" = "prom-stack-prometheus-node-exporter.monitoring.svc.cluster.local:9100" },
+    ]
+    metrics_path = "/metrics"
+    forward_to = [prometheus.remote_write.victoriametrics.receiver]
+    job_name = "scraper.remote.node_exporter"
+}
+

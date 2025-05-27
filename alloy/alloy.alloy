@@ -1,0 +1,96 @@
+logging {
+    level = "debug"
+}
+
+prometheus.remote_write "victoriametrics" {
+  endpoint {
+    url = "http://vm-victoria-metrics-single-server.monitoring.svc.cluster.local:8428/api/v1/write"
+  }
+}
+
+# Scrape pods
+discovery.kubernetes "pods" {
+  role = "pod"
+}
+
+prometheus.scrape "pod_metrics" {
+  targets = discovery.kubernetes.pods.targets
+
+
+  forward_to = [prometheus.remote_write.victoriametrics.receiver]
+}
+
+# Scrape node metrics (cadvisor or node-exporter)
+discovery.kubernetes "nodes" {
+  role = "node"
+}
+
+prometheus.scrape "node_metrics" {
+  targets      = discovery.kubernetes.nodes.targets
+  metrics_path = "/metrics"
+  scheme       = "http"
+
+  forward_to = [prometheus.remote_write.victoriametrics.receiver]
+}
+
+# Scrape kubelet metrics (secure port)
+prometheus.scrape "kubelet" {
+  targets = discovery.kubernetes.nodes.targets
+
+  metrics_path = "/metrics"
+  scheme       = "https"
+
+  tls_config {
+    ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    insecure_skip_verify = true
+  }
+
+  authorization {
+    credentials_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  }
+
+  relabel_configs = [
+    {
+      source_labels = ["__address__"],
+      target_label  = "__address__",
+      regex         = "([^:]+)(?::\\d+)?",
+      replacement   = "$1:10250"
+    },
+    {
+      source_labels = ["__meta_kubernetes_node_name"],
+      target_label  = "node"
+    }
+  ]
+
+  forward_to = [prometheus.remote_write.victoriametrics.receiver]
+}
+
+# Scrape apiserver metrics
+discovery.kubernetes "apiserver" {
+  role = "endpoints"
+}
+
+prometheus.scrape "apiserver_metrics" {
+  targets      = discovery.kubernetes.apiserver.targets
+  scheme       = "https"
+  metrics_path = "/metrics"
+
+  tls_config {
+    ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    insecure_skip_verify = false
+  }
+
+  authorization {
+    credentials_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+  }
+
+  relabel_configs = [
+    {
+      source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_service_name", "__meta_kubernetes_endpoint_port_name"],
+      action        = "keep",
+      regex         = "default;kubernetes;https"
+    }
+  ]
+
+  forward_to = [prometheus.remote_write.victoriametrics.receiver]
+}
