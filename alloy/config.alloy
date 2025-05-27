@@ -304,7 +304,7 @@ prometheus.scrape "pods_metrics" {
 
 
 prometheus.relabel "add_cluster_label" {
-  forward_to = [prometheus.remote_write.victoriametrics.receiver]
+  forward_to = [prometheus.remote_write.vms.receiver]
 
   rule {
     action        = "replace"
